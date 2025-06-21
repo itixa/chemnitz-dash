@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: chemnitz-dash
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: gunicorn app:server
