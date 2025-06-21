@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>👥 Registered Users</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f8;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    table {
+      width: 100%;
+      max-width: 1000px;
+      margin: 20px auto;
+      border-collapse: collapse;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background-color: #34495e;
+      color: white;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    .btn {
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      color: white;
+    }
+    .delete-btn {
+      background-color: #e74c3c;
+    }
+    .delete-btn:hover {
+      background-color: #c0392b;
+    }
+    .edit-btn {
+      background-color: #3498db;
+      margin-right: 6px;
+    }
+    .edit-btn:hover {
+      background-color: #2980b9;
+    }
+    .favorite-item {
+      margin-bottom: 8px;
+    }
+    .star {
+      color: gold;
+      font-size: 18px;
+      margin-right: 4px;
+    }
+    .message {
+      text-align: center;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .success {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>👥 Registered Users</h1>
+  <div id="message" class="message"></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Nationality</th>
+        <th>Current Location</th>
+        <th>Destination</th>
+        <th>Favorites</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="usersTableBody"></tbody>
+  </table>
+
+  <script>
+    const messageDiv = document.getElementById('message');
+    const usersTableBody = document.getElementById('usersTableBody');
+
+    async function loadUsers() {
+      try {
+        const res = await fetch('/users');
+        if (!res.ok) throw new Error('Failed to fetch users');
+        const users = await res.json();
+        usersTableBody.innerHTML = '';
+
+        if (users.length === 0) {
+          usersTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No users found.</td></tr>';
+          return;
+        }
+
+        users.forEach(user => {
+          const currentLocation = user.currentLocation?.name || 'Unknown';
+          const destinationLocation = user.destinationLocation?.name || 'Unknown';
+
+          const favoritesHtml = Array.isArray(user.favorites) && user.favorites.length > 0
+            ? user.favorites.map(fav => `
+                <div class="favorite-item">
+                  <span class="star">⭐</span>
+                  <strong>${fav.name}</strong><br/>
+                  <small>${fav.description || ''}</small>
+                </div>
+              `).join('')
+            : '—';
+
+          const row = `
+            <tr>
+              <td>${user.name}</td>
+              <td>${user.phone}</td>
+              <td>${user.nationality}</td>
+              <td>${currentLocation}</td>
+              <td>${destinationLocation}</td>
+              <td>${favoritesHtml}</td>
+              <td>
+                <button class="btn edit-btn" onclick="editUser('${user._id}', '${user.name}', '${user.phone}', '${user.nationality}', '${currentLocation}', '${destinationLocation}')">Edit</button>
+                <button class="btn delete-btn" onclick="deleteUser('${user._id}')">Delete</button>
+              </td>
+            </tr>
+          `;
+          usersTableBody.insertAdjacentHTML('beforeend', row);
+        });
+      } catch (err) {
+        console.error(err);
+        messageDiv.innerHTML = '<p class="error">❌ Error loading users.</p>';
+      }
+    }
+
+    async function deleteUser(userId) {
+      if (!confirm('Are you sure you want to delete this user?')) return;
+      try {
+        const res = await fetch(`/users/${userId}`, { method: 'DELETE' });
+        if (res.ok) {
+          messageDiv.innerHTML = '<p class="success">✅ User deleted successfully.</p>';
+          loadUsers();
+        } else {
+          messageDiv.innerHTML = '<p class="error">❌ Failed to delete user.</p>';
+        }
+      } catch (err) {
+        console.error(err);
+        messageDiv.innerHTML = '<p class="error">❌ Error deleting user.</p>';
+      }
+    }
+
+    async function editUser(id, currentName, currentPhone, currentNationality, currentLocation, destinationLocation) {
+      const name = prompt("Enter new name:", currentName);
+      const phone = prompt("Enter new phone number:", currentPhone);
+      const nationality = prompt("Enter new nationality:", currentNationality);
+      const location = prompt("Enter current location name:", currentLocation);
+      const destination = prompt("Enter destination location name:", destinationLocation);
+
+      if (!name || !phone || !nationality || !location || !destination) {
+        alert("❌ All fields must be filled.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/users/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            phone,
+            nationality,
+            currentLocation: { name: location },
+            destinationLocation: { name: destination }
+          })
+        });
+
+        if (res.ok) {
+          messageDiv.innerHTML = '<p class="success">✅ User updated successfully.</p>';
+          loadUsers();
+        } else {
+          messageDiv.innerHTML = '<p class="error">❌ Failed to update user.</p>';
+        }
+      } catch (err) {
+        console.error(err);
+        messageDiv.innerHTML = '<p class="error">❌ Error updating user.</p>';
+      }
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

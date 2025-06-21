@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Edit Profile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f8;
+      padding: 20px;
+    }
+    form {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 12px;
+      background: #27ae60;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <form id="editForm">
+    <h2>✏️ Edit Your Profile</h2>
+    <label>Name: <input type="text" name="name" required></label>
+    <label>Phone: <input type="text" name="phone" required></label>
+    <label>Nationality:
+      <select name="nationality" required>
+        <option value="German">German</option>
+        <option value="Indian">Indian</option>
+        <option value="Syrian">Syrian</option>
+        <option value="Ukrainian">Ukrainian</option>
+      </select>
+    </label>
+    <label>Current Location:
+      <select name="currentLocation" required>
+        <option value="TU Chemnitz">TU Chemnitz</option>
+        <option value="Karl-Marx-Monument">Karl-Marx-Monument</option>
+        <option value="Museum Gunzenhauser">Museum Gunzenhauser</option>
+        <option value="DAStietz">DAStietz</option>
+      </select>
+    </label>
+    <label>Destination Location:
+      <select name="destinationLocation" required>
+        <option value="TU Chemnitz">TU Chemnitz</option>
+        <option value="Karl-Marx-Monument">Karl-Marx-Monument</option>
+        <option value="Museum Gunzenhauser">Museum Gunzenhauser</option>
+        <option value="DAStietz">DAStietz</option>
+      </select>
+    </label>
+    <button type="submit">Save Changes</button>
+  </form>
+
+  <script>
+    const form = document.getElementById('editForm');
+
+    async function loadUser() {
+      const res = await fetch('/me');
+      const user = await res.json();
+
+      form.name.value = user.name;
+      form.phone.value = user.phone;
+      form.nationality.value = user.nationality;
+      form.currentLocation.value = user.currentLocation?.name || '';
+      form.destinationLocation.value = user.destinationLocation?.name || '';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res1 = await fetch('/me');
+      const user = await res1.json();
+
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+
+      const updated = {
+        name: data.name,
+        phone: data.phone,
+        nationality: data.nationality,
+        currentLocation: { name: data.currentLocation },
+        destinationLocation: { name: data.destinationLocation }
+      };
+
+      const res2 = await fetch(`/users/${user._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+
+      if (res2.ok) {
+        alert("✅ Profile updated!");
+        window.location.href = '/favorites.html';
+      } else {
+        alert("❌ Failed to update profile");
+      }
+    });
+
+    loadUser();
+  </script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cultural Sites - Chemnitz</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <style>
+    body { font-family: Arial; background: #eef1f6; padding: 20px; }
+    #map { height: 500px; margin-bottom: 20px; border-radius: 10px; }
+    #descriptionBox, #controls { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+    button, select { padding: 10px; margin-top: 10px; margin-right: 10px; background: #ffcc00; border: none; border-radius: 6px; cursor: pointer; }
+    input { padding: 6px; width: 250px; margin-top: 5px; border-radius: 4px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+
+<h2>📍 Your Route to Destination</h2>
+
+<div id="controls">
+  <label>Route Type:
+    <select id="travelMode">
+      <option value="car">Driving</option>
+      <option value="foot">Walking</option>
+      <option value="bike">Cycling</option>
+    </select>
+  </label>
+
+  <label>Show POI Types:</label>
+  <label><input type="checkbox" class="poiType" value="museum" checked> Museum</label>
+  <label><input type="checkbox" class="poiType" value="art_gallery" checked> Art Gallery</label>
+  <label><input type="checkbox" class="poiType" value="monument" checked> Monument</label>
+  <label><input type="checkbox" class="poiType" value="memorial" checked> Memorial</label>
+  <button id="togglePOIs">🔁 Refresh POIs</button>
+</div>
+
+<div id="map"></div>
+<div id="descriptionBox"></div>
+<button id="favBtn">⭐ Add to Favorites</button>
+<button id="removeFavBtn" style="display:none;">❌ Remove Favorite</button>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const current = urlParams.get("current");
+const destination = urlParams.get("destination");
+const userId = "6835fad1c3e295336c85ffc9";
+
+let map, routingControl;
+let poiMarkers = [];
+
+const descriptions = {
+  "TU Chemnitz": "A large research university in Chemnitz. Offers tech, engineering, and cultural programs. Central to city life and culture.",
+  "Museum Gunzenhauser": "Modern art museum with 20th-century masterpieces including Otto Dix. Central cultural landmark in Chemnitz.",
+  "Schlossbergmuseum Chemnitz": "Historic monastery-turned-museum. Explores city heritage and architecture. Great for history lovers.",
+  "Industriemuseum Chemnitz": "Industrial museum showing Chemnitz’s manufacturing and machinery heritage. Fascinating exhibits on local history.",
+  "Karl-Marx-Monument": "7-meter bronze bust of Karl Marx. A symbolic and historic figure of the GDR and Chemnitz's legacy."
+};
+
+async function geocode(place) {
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`);
+  const data = await res.json();
+  if (!data.length) throw new Error("Location not found: " + place);
+  return { lat: +data[0].lat, lng: +data[0].lon };
+}
+
+function getSelectedPOITypes() {
+  return Array.from(document.querySelectorAll('.poiType:checked')).map(cb => cb.value);
+}
+
+async function fetchOverpassData(lat, lng) {
+  const types = getSelectedPOITypes();
+  if (!types.length) return [];
+
+  const filters = types.map(t => {
+    return t === "art_gallery" || t === "museum" ?
+      `node["tourism"="${t}"](around:2000, ${lat}, ${lng});` :
+      `node["historic"="${t}"](around:2000, ${lat}, ${lng});`;
+  }).join("\n");
+
+  const query = `[out:json][timeout:25];(${filters});out body;>;out skel qt;`;
+
+  const response = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    body: query
+  });
+
+  const json = await response.json();
+  return json.elements.filter(e => e.lat && e.lon);
+}
+
+function clearPOIMarkers() {
+  poiMarkers.forEach(m => map.removeLayer(m));
+  poiMarkers = [];
+}
+
+function renderPOIMarkers(pois) {
+  pois.forEach(el => {
+    const tags = el.tags || {};
+    const name = tags.name || "Unnamed Site";
+    const type = tags.tourism || tags.historic || "Cultural Site";
+    const desc = tags.description ? `<br><i>${tags.description}</i>` : "";
+    const wiki = tags.wikipedia ? `<br><a href="https://en.wikipedia.org/wiki/${tags.wikipedia.split(':')[1]}" target="_blank">📘 Wikipedia</a>` : "";
+    const marker = L.marker([el.lat, el.lon]).addTo(map).bindPopup(`<b>${name}</b><br>Type: ${type}${desc}${wiki}`);
+    poiMarkers.push(marker);
+  });
+}
+
+async function init() {
+  const start = await geocode(current);
+  const end = await geocode(destination);
+  const travelMode = document.getElementById("travelMode").value;
+
+  map = L.map('map').setView([start.lat, start.lng], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const profile = travelMode === "foot" ? "foot" : travelMode === "bike" ? "bike" : "car";
+
+  routingControl = L.Routing.control({
+    waypoints: [L.latLng(start.lat, start.lng), L.latLng(end.lat, end.lng)],
+    router: L.Routing.osrmv1({ profile }),
+    routeWhileDragging: false
+  }).addTo(map);
+
+  const pois = await fetchOverpassData(end.lat, end.lng);
+  renderPOIMarkers(pois);
+
+  document.getElementById("descriptionBox").innerHTML = `
+    <h3>📌 Destination: ${destination}</h3>
+    <p>${descriptions[destination] || "No details available."}</p>
+  `;
+}
+
+document.getElementById("togglePOIs").onclick = async () => {
+  if (!map) return;
+  clearPOIMarkers();
+  const destCoords = routingControl.getWaypoints()[1].latLng;
+  const pois = await fetchOverpassData(destCoords.lat, destCoords.lng);
+  renderPOIMarkers(pois);
+};
+
+document.getElementById("favBtn").onclick = async () => {
+  const res = await fetch(`/users/${userId}/favorites`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ site: destination })
+  });
+  if (res.ok) alert("⭐ Added to favorites!");
+};
+
+document.getElementById("removeFavBtn").onclick = async () => {
+  const res = await fetch(`/users/${userId}/favorites`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ site: destination })
+  });
+  if (res.ok) alert("❌ Removed from favorites!");
+};
+
+if (current && destination) {
+  init();
+} else {
+  document.body.innerHTML += `
+    <div id="formContainer">
+      <h3>Enter Route Details</h3>
+      <label>Start Location:<br><input type="text" id="startInput" /></label><br><br>
+      <label>Destination:<br><input type="text" id="destInput" /></label><br><br>
+      <button onclick="submitRoute()">Go</button>
+    </div>
+  `;
+  document.getElementById('map').style.display = 'none';
+  document.getElementById('descriptionBox').style.display = 'none';
+  document.getElementById('favBtn').style.display = 'none';
+  document.getElementById('removeFavBtn').style.display = 'none';
+}
+
+function submitRoute() {
+  const start = document.getElementById("startInput").value;
+  const dest = document.getElementById("destInput").value;
+  if (!start || !dest) {
+    alert("Please enter both the start and destination.");
+    return;
+  }
+  window.location.href = `cultural-sites.html?current=${encodeURIComponent(start)}&destination=${encodeURIComponent(dest)}`;
+}
+</script>
+
+</body>
+</html>

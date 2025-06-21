@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chemnitz Route to Your Destination</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f4f8; }
+    header, footer {
+      background: #34495e;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      position: relative;
+    }
+    header .top-buttons {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+    }
+    button, select {
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    #map {
+      height: 400px;
+      margin: 20px;
+      border-radius: 10px;
+    }
+    #destinationInfo {
+      max-width: 800px;
+      background: white;
+      margin: 0 auto 20px;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    #addFavoriteBtn {
+      background-color: gold;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .nav-buttons {
+      text-align: center;
+    }
+    .nav-buttons select {
+      background: white;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="top-buttons">
+      <a href="/favorites.html"><button style="background-color:gold;">⭐ Favorites</button></a>
+      <a href="/edit-profile.html"><button style="background-color:dodgerblue; color:white;">🛠 Edit Profile</button></a>
+      <button id="logoutBtn" style="background-color:#e74c3c; color:white;">Logout</button>
+    </div>
+    <h2>Chemnitz Route to Your Destination</h2>
+  </header>
+
+  <div class="nav-buttons">
+    <label>
+      Current Location:
+      <select id="fromSelect"></select>
+    </label>
+    <label>
+      Destination:
+      <select id="toSelect"></select>
+    </label>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="destinationInfo">
+    <h3>📍 Destination Details</h3>
+    <p id="desc"></p>
+    <p><strong>Address:</strong> <span id="address"></span></p>
+    <button id="addFavoriteBtn">⭐ Add to Favorites</button>
+  </div>
+
+  <footer>
+    <p>© 2025 Chemnitz Cultural Routes</p>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+  <script>
+    const locations = {
+      "TU Chemnitz": {
+        description: "Public research university focusing on technology, innovation, and cultural heritage.",
+        address: "Straße der Nationen 62, 09111 Chemnitz"
+      },
+      "Museum Gunzenhauser": {
+        description: "Modern art museum with works by Otto Dix and 20th-century German artists.",
+        address: "Stollberger Str. 2, 09119 Chemnitz"
+      },
+      "Karl-Marx-Monument": {
+        description: "Iconic 7-meter Karl Marx bust, symbol of the city's socialist past.",
+        address: "Brückenstraße, 09111 Chemnitz"
+      },
+      "Industriemuseum Chemnitz": {
+        description: "Museum of industrial heritage with machinery, vehicles and history.",
+        address: "Zwickauer Str. 119, 09112 Chemnitz"
+      },
+      "Schlossbergmuseum Chemnitz": {
+        description: "Historic exhibits in a former monastery on the city's history.",
+        address: "Schloßberg 12, 09113 Chemnitz"
+      },
+      "Stadthalle Chemnitz": {
+        description: "Major concert and events venue in Chemnitz for cultural shows.",
+        address: "Theaterstraße 3, 09111 Chemnitz"
+      },
+      "Kunstsammlungen Chemnitz": {
+        description: "Art collections featuring classical and contemporary German art.",
+        address: "Theaterplatz 1, 09111 Chemnitz"
+      },
+      "Schauspielhaus Chemnitz": {
+        description: "Theatre for dramatic arts and German plays.",
+        address: "Zieschestraße 28, 09111 Chemnitz"
+      },
+      "Opernhaus Chemnitz": {
+        description: "Opera house for classical opera and symphonic music.",
+        address: "Theaterplatz 2, 09111 Chemnitz"
+      },
+      "DAStietz": {
+        description: "Cultural center with exhibitions, library and art institutions.",
+        address: "Moritzstraße 20, 09111 Chemnitz"
+      }
+    };
+
+    let map, routingControl, currentCoords, destinationCoords;
+    let currentUserId = null;
+
+    const fromSelect = document.getElementById('fromSelect');
+    const toSelect = document.getElementById('toSelect');
+    const desc = document.getElementById('desc');
+    const address = document.getElementById('address');
+    const addFavoriteBtn = document.getElementById('addFavoriteBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    Object.keys(locations).forEach(name => {
+      fromSelect.innerHTML += `<option value="${name}">${name}</option>`;
+      toSelect.innerHTML += `<option value="${name}">${name}</option>`;
+    });
+
+    logoutBtn.onclick = async () => {
+      await fetch('/logout', { method: 'POST' });
+      window.location.href = '/index.html';
+    };
+
+    async function geocode(place) {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`);
+      const data = await res.json();
+      if (!data[0]) {
+        alert(`❌ Couldn't find coordinates for: ${place}`);
+        return { lat: 50.83, lng: 12.92 }; // fallback
+      }
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+
+    function updateMap(from, to) {
+      if (routingControl) routingControl.remove();
+
+      routingControl = L.Routing.control({
+        waypoints: [L.latLng(from.lat, from.lng), L.latLng(to.lat, to.lng)],
+        routeWhileDragging: false
+      }).addTo(map);
+    }
+
+    function updateDescription(dest) {
+      const info = locations[dest];
+      desc.innerText = info.description;
+      address.innerText = info.address;
+    }
+
+    async function fetchUserAndInit() {
+      const res = await fetch('/me');
+      const user = await res.json();
+      if (!user || !user.currentLocation?.name || !user.destinationLocation?.name) {
+        alert("❌ Missing location data.");
+        return;
+      }
+
+      currentUserId = user._id;
+      fromSelect.value = user.currentLocation.name;
+      toSelect.value = user.destinationLocation.name;
+
+      currentCoords = await geocode(user.currentLocation.name);
+      destinationCoords = await geocode(user.destinationLocation.name);
+
+      map = L.map('map').setView(currentCoords, 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+      updateMap(currentCoords, destinationCoords);
+      updateDescription(user.destinationLocation.name);
+    }
+
+    fromSelect.addEventListener('change', async () => {
+      currentCoords = await geocode(fromSelect.value);
+      updateMap(currentCoords, destinationCoords);
+    });
+
+    toSelect.addEventListener('change', async () => {
+      destinationCoords = await geocode(toSelect.value);
+      updateMap(currentCoords, destinationCoords);
+      updateDescription(toSelect.value);
+    });
+
+    addFavoriteBtn.onclick = async () => {
+      const destinationName = toSelect.value;
+      const site = {
+        name: destinationName,
+        lat: destinationCoords.lat,
+        lon: destinationCoords.lng,
+        address: locations[destinationName].address,
+        description: locations[destinationName].description
+      };
+
+      const res = await fetch(`/users/${currentUserId}/favorites`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site })
+      });
+
+      if (res.ok) {
+        alert("⭐ Added to favorites!");
+      } else {
+        alert("❌ Failed to add favorite.");
+      }
+    };
+
+    fetchUserAndInit();
+  </script>
+</body>
+</html>

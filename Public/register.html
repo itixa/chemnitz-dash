@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Register | Chemnitz Cultural Routes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f5f5f5;
+      text-align: center;
+      margin: 0;
+    }
+    header, footer {
+      background: #34495e;
+      color: white;
+      padding: 20px;
+    }
+    form {
+      background: #fff;
+      max-width: 450px;
+      margin: 40px auto;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      background-color: #2ecc71;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    a {
+      color: #3498db;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Create Your Account</h1>
+  </header>
+
+  <form id="registerForm">
+    <h2>Register</h2>
+    <input type="text" name="name" placeholder="Enter your name" required />
+    <input type="password" name="password" placeholder="Create password" required />
+    
+    <select name="nationality" required>
+      <option value="">Select nationality</option>
+      <option value="German">German</option>
+      <option value="Indian">Indian</option>
+      <option value="Syrian">Syrian</option>
+      <option value="Ukrainian">Ukrainian</option>
+      <option value="Turkish">Turkish</option>
+    </select>
+
+    <select name="currentLocation" required>
+      <option value="">Current Location</option>
+      <option value="TU Chemnitz">TU Chemnitz</option>
+      <option value="Museum Gunzenhauser">Museum Gunzenhauser</option>
+      <option value="Karl-Marx-Monument">Karl-Marx-Monument</option>
+      <option value="Industriemuseum Chemnitz">Industriemuseum Chemnitz</option>
+      <option value="Schlossbergmuseum Chemnitz">Schlossbergmuseum Chemnitz</option>
+      <option value="Stadthalle Chemnitz">Stadthalle Chemnitz</option>
+      <option value="Kunstsammlungen Chemnitz">Kunstsammlungen Chemnitz</option>
+      <option value="Schauspielhaus Chemnitz">Schauspielhaus Chemnitz</option>
+      <option value="Opernhaus Chemnitz">Opernhaus Chemnitz</option>
+      <option value="DAStietz">DAStietz</option>
+    </select>
+
+    <select name="destinationLocation" required>
+      <option value="">Destination Location</option>
+      <option value="TU Chemnitz">TU Chemnitz</option>
+      <option value="Museum Gunzenhauser">Museum Gunzenhauser</option>
+      <option value="Karl-Marx-Monument">Karl-Marx-Monument</option>
+      <option value="Industriemuseum Chemnitz">Industriemuseum Chemnitz</option>
+      <option value="Schlossbergmuseum Chemnitz">Schlossbergmuseum Chemnitz</option>
+      <option value="Stadthalle Chemnitz">Stadthalle Chemnitz</option>
+      <option value="Kunstsammlungen Chemnitz">Kunstsammlungen Chemnitz</option>
+      <option value="Schauspielhaus Chemnitz">Schauspielhaus Chemnitz</option>
+      <option value="Opernhaus Chemnitz">Opernhaus Chemnitz</option>
+      <option value="DAStietz">DAStietz</option>
+    </select>
+
+    <button type="submit">Register</button>
+    <p>Already have an account? <a href="/index.html">Login here</a></p>
+  </form>
+
+  <footer>
+    <p>© 2025 Chemnitz Cultural Routes</p>
+  </footer>
+
+  <script>
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+
+      const res = await fetch("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        alert("✅ Account created! Redirecting to map...");
+        window.location.href = "/map.html";
+        } else {
+        alert("❌ " + (result.error || result.message || 'Something went wrong'));
+        }
+
+    });
+  </script>
+</body> 
+</html>

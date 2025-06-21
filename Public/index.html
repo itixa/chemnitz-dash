@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login | Chemnitz Cultural Routes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f5f5f5;
+      text-align: center;
+      margin: 0;
+    }
+    header, footer {
+      background: #34495e;
+      color: white;
+      padding: 20px;
+    }
+    form {
+      background: #fff;
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    a {
+      color: #3498db;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Explore Cultural Sites of Chemnitz</h1>
+  </header>
+  <p style="text-align: center; margin-top: 20px;">
+  <a href="/favorites.html">⭐ View Favorites</a>
+  
+  </p>
+
+  <form id="loginForm">
+    <h2>Login</h2>
+    <input type="text" name="name" placeholder="Enter your name" required />
+    <input type="password" name="password" placeholder="Enter password" required />
+    <button type="submit">Login</button>
+    <p>Don't have an account? <a href="/register.html">Register here</a></p>
+  </form>
+
+  <footer>
+    <p>© 2025 Chemnitz Cultural Routes</p>
+  </footer>
+
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        alert("✅ Login successful!");
+        window.location.href = "/map.html"; // Redirect after login
+      } else {
+        alert("❌ " + result.error);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>⭐ My Favorites</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 20px;
+    }
+    header {
+      text-align: center;
+      padding: 20px 10px;
+    }
+    h2 {
+      color: #2c3e50;
+    }
+    .fav-card {
+      background: white;
+      padding: 15px;
+      margin: 15px auto;
+      max-width: 600px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.08);
+    }
+    .fav-card h3 {
+      color: #2980b9;
+      margin-bottom: 8px;
+    }
+    .remove-btn {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn-link {
+      background-color: #3498db;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      margin-bottom: 10px;
+    }
+    .logout {
+      background-color: #e74c3c;
+      padding: 8px 12px;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #favoritesContainer {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="btn-link" href="/edit-profile.html">🛠 Edit Profile</a>
+    <button class="logout" id="logoutBtn">Logout</button>
+    
+  </div>
+
+  <header>
+    <h2>⭐ My Favorite Cultural Sites</h2>
+    
+    <a href="http://127.0.0.1:8050" target="_blank">
+    <button style="background-color:green; color:white; font-weight:bold;">
+        📊 View Favorite Stats
+    </button>
+    </a>
+
+  </header>
+
+  <div id="favoritesContainer">
+    <p>Loading...</p>
+  </div>
+
+  <script>
+    const logoutBtn = document.getElementById('logoutBtn');
+    const favoritesContainer = document.getElementById('favoritesContainer');
+
+    logoutBtn.onclick = async () => {
+      await fetch('/logout', { method: 'POST' });
+      window.location.href = '/index.html';
+    };
+
+    async function loadFavorites() {
+      try {
+        const res = await fetch('/me');
+        const user = await res.json();
+        const favorites = user.favorites || [];
+
+        if (favorites.length === 0) {
+          favoritesContainer.innerHTML = '<p>No favorites yet.</p>';
+          return;
+        }
+
+        favoritesContainer.innerHTML = '';
+        favorites.forEach((fav, index) => {
+          const card = document.createElement('div');
+          card.className = 'fav-card';
+          card.innerHTML = `
+            <h3>${fav.name}</h3>
+            <p><strong>Description:</strong> ${fav.description}</p>
+            <p><strong>Address:</strong> ${fav.address}</p>
+            <button class="remove-btn" onclick="removeFavorite(${index})">🗑 Remove</button>
+          `;
+          favoritesContainer.appendChild(card);
+        });
+      } catch (err) {
+        console.error('Error loading favorites:', err);
+        favoritesContainer.innerHTML = '<p>❌ Failed to load favorites.</p>';
+      }
+    }
+
+    async function removeFavorite(index) {
+      try {
+        const resUser = await fetch('/me');
+        const user = await resUser.json();
+        const toRemove = user.favorites[index];
+
+        const res = await fetch(`/users/${user._id}/favorites`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ site: toRemove })
+        });
+
+        if (res.ok) {
+          alert("✅ Favorite removed!");
+          loadFavorites();
+        } else {
+          alert("❌ Failed to remove favorite.");
+        }
+      } catch (err) {
+        console.error('Remove error:', err);
+        alert("❌ Error removing favorite.");
+      }
+    }
+
+    loadFavorites();
+  </script>
+</body>
+</html>
